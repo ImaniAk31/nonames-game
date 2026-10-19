@@ -38,7 +38,7 @@ const HostScreen = () => {
     // --- NEW WEB DEPLOYMENT URL LOGIC ---
     const wsUrl = window.location.hostname === 'localhost' 
       ? `ws://localhost:8000/ws/${roomCode}/HOST`
-      : `wss://YOUR-BACKEND-URL.onrender.com/ws/${roomCode}/HOST`;
+      : `wss://nonames-game.onrender.com/ws/${roomCode}/HOST`;
 
     const socket = new WebSocket(wsUrl);
     socket.onopen = () => console.log("Host connected to WebSocket");

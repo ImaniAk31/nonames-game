@@ -18,7 +18,7 @@ const ClientScreen = () => {
     // --- NEW WEB DEPLOYMENT URL LOGIC ---
     const wsUrl = window.location.hostname === 'localhost' 
       ? `ws://localhost:8000/ws/${roomCode.toUpperCase()}/${nickname}`
-      : `wss://YOUR-BACKEND-URL.onrender.com/ws/${roomCode.toUpperCase()}/${nickname}`;
+      : `wss://nonames-game.onrender.com/ws/${roomCode.toUpperCase()}/${nickname}`;
 
     const socket = new WebSocket(wsUrl);
     socket.onopen = () => setJoined(true);
