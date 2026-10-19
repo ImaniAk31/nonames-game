@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import QRCode from 'react-qr-code'; // <-- NEW: Imported the QR Code generator!
 
 const HostScreen = () => {
   const [roomCode, setRoomCode] = useState('KJDS'); 
@@ -146,8 +147,10 @@ const HostScreen = () => {
 
   const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
 
+  // The actual URL your friends will visit to join
+  const joinUrl = "https://nonames-game.vercel.app";
+
   return (
-    // NEW: h-screen, w-screen, and overflow-hidden completely disable scrolling!
     <div className="h-screen w-screen overflow-hidden bg-gray-900 text-white flex flex-col items-center p-4 lg:p-8 font-sans relative">
       
       {/* 1. LOBBY STATE */}
@@ -169,14 +172,20 @@ const HostScreen = () => {
           </div>
           
           <div className="flex w-full justify-between gap-8 h-3/5">
+            {/* --- NEW: QR CODE SECTION --- */}
             <div className="flex flex-col items-center justify-center bg-gray-800 w-1/2 p-6 rounded-2xl border-4 border-blue-500 shadow-2xl h-full">
-              <h2 className="text-2xl lg:text-3xl font-bold">JOIN AT: <span className="text-blue-400">NONAMES.LIVE</span></h2>
-              <p className="text-xl text-gray-400 mt-2">ROOM CODE</p>
-              <p className="text-7xl lg:text-8xl font-black tracking-widest text-yellow-400 my-2">{roomCode}</p>
+              <h2 className="text-2xl lg:text-3xl font-bold mb-4 text-gray-200">SCAN TO JOIN</h2>
+              
+              <div className="bg-white p-4 rounded-xl shadow-inner border-4 border-gray-300">
+                <QRCode value={joinUrl} size={180} />
+              </div>
+              
+              <p className="text-lg text-gray-400 mt-6">OR ENTER ROOM CODE:</p>
+              <p className="text-6xl lg:text-7xl font-black tracking-widest text-yellow-400 mt-2">{roomCode}</p>
             </div>
+
             <div className="flex flex-col bg-gray-800 w-1/2 p-6 rounded-2xl border-4 border-pink-500 shadow-2xl h-full overflow-hidden">
               <h2 className="text-3xl font-bold mb-4 text-center text-pink-400">PLAYERS ({players.length})</h2>
-              {/* Added overflow-y-auto so ONLY the player list scrolls if you get a massive group! */}
               <div className="grid grid-cols-2 gap-3 overflow-y-auto pr-2 pb-2">
                 {players.length === 0 && <p className="text-gray-400 italic col-span-2 text-center text-lg mt-4">Waiting for players...</p>}
                 {players.map((player, idx) => (
@@ -194,7 +203,7 @@ const HostScreen = () => {
         </div>
       )}
 
-      {/* NEW: ACTOR PREP STATE */}
+      {/* ACTOR PREP STATE */}
       {gameState === 'actor_prep' && (
         <div className="flex flex-col items-center justify-center h-full relative w-full">
           <div className="absolute top-4 left-4 lg:top-8 lg:left-8 bg-gray-800 border-2 border-gray-600 px-6 py-2 rounded-xl">
