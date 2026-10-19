@@ -180,7 +180,7 @@ const HostScreen = () => {
                 <QRCode value={joinUrl} size={180} />
               </div>
               
-              <p className="text-lg text-gray-400 mt-6">OR ENTER ROOM CODE:</p>
+              <p className="text-lg text-gray-400 mt-6">ENTER ROOM CODE:</p>
               <p className="text-6xl lg:text-7xl font-black tracking-widest text-yellow-400 mt-2">{roomCode}</p>
             </div>
 
