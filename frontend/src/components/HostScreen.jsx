@@ -5,10 +5,14 @@ const HostScreen = () => {
   const [roomCode, setRoomCode] = useState('KJDS'); 
   const [players, setPlayers] = useState([]);
   
+  // NEW STATE: Added 'inter_round' for the auto-countdown
   const [gameState, setGameState] = useState('lobby'); 
   const [ws, setWs] = useState(null);
   const [celebrationMsg, setCelebrationMsg] = useState('');
   const [timeLeft, setTimeLeft] = useState(60);
+  
+  // NEW STATE: The 10-second countdown between rounds
+  const [interRoundTime, setInterRoundTime] = useState(10);
 
   const [maxRounds, setMaxRounds] = useState(5);
   const [currentRound, setCurrentRound] = useState(0);
@@ -45,13 +49,11 @@ const HostScreen = () => {
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
       
-      // --- NEW: LISTEN FOR AVATARS AND ADD THEM TO THE ROSTER ---
       if (data.type === 'player_joined') {
         if (data.name !== 'HOST') {
           setPlayers((prev) => {
             const existing = prev.find(p => p.name === data.name);
             if (existing) {
-              // Update avatar if they disconnect and reconnect
               return prev.map(p => p.name === data.name ? { ...p, avatar: data.avatar } : p);
             }
             return [...prev, { name: data.name, avatar: data.avatar, score: 0 }];
@@ -81,12 +83,14 @@ const HostScreen = () => {
         setGameState('round_over');
         socket.send(JSON.stringify({ action: 'end_round' }));
 
+        // Check if game is over, otherwise start the 10-second countdown!
         setTimeout(() => {
           setCelebrationMsg('');
           if (currentRoundRef.current >= maxRoundsRef.current) {
             setGameState('game_over');
           } else {
-            setGameState('lobby');
+            setInterRoundTime(10);
+            setGameState('inter_round');
           }
         }, 5000);
       }
@@ -95,6 +99,19 @@ const HostScreen = () => {
     setWs(socket);
     return () => socket.close();
   }, [roomCode]);
+
+  // --- AUTOMATIC INTER-ROUND COUNTDOWN LOGIC ---
+  useEffect(() => {
+    if (gameState === 'inter_round' && interRoundTime > 0) {
+      const timerId = setInterval(() => {
+        setInterRoundTime((prev) => prev - 1);
+      }, 1000);
+      return () => clearInterval(timerId);
+    } else if (gameState === 'inter_round' && interRoundTime === 0) {
+      // Boom! Start the next round automatically!
+      startGame();
+    }
+  }, [gameState, interRoundTime]);
 
   useEffect(() => {
     if (gameState === 'active_turn' && timeLeft === 10) {
@@ -125,11 +142,13 @@ const HostScreen = () => {
       setGameState('round_over');
       if (ws) ws.send(JSON.stringify({ action: 'end_round' }));
       
+      // Check if game is over, otherwise start the 10-second countdown!
       setTimeout(() => {
         if (currentRoundRef.current >= maxRoundsRef.current) {
           setGameState('game_over');
         } else {
-          setGameState('lobby');
+          setInterRoundTime(10);
+          setGameState('inter_round');
         }
       }, 5000);
     }
@@ -190,7 +209,6 @@ const HostScreen = () => {
               <div className="grid grid-cols-2 gap-3 overflow-y-auto pr-2 pb-2">
                 {players.length === 0 && <p className="text-gray-400 italic col-span-2 text-center text-lg mt-4">Waiting for players...</p>}
                 {players.map((player, idx) => (
-                  // --- NEW: DISPLAYS AVATAR IN LOBBY ---
                   <div key={idx} className="flex items-center justify-center gap-2 bg-gray-700 p-3 rounded-xl text-2xl font-bold text-center border-b-4 border-gray-600 truncate">
                     <span className="text-3xl">{player.avatar || '👤'}</span>
                     <span>{player.name}</span>
@@ -202,8 +220,21 @@ const HostScreen = () => {
           </div>
 
           <button onClick={startGame} disabled={players.length === 0} className={`mt-8 text-3xl font-bold py-4 px-12 rounded-full transition-all shadow-[0_0_30px_rgba(59,130,246,0.4)] ${players.length > 0 ? 'bg-blue-600 hover:bg-blue-500 text-white hover:scale-105' : 'bg-gray-600 text-gray-400'}`}>
-            START ROUND {currentRound + 1}
+            START GAME
           </button>
+        </div>
+      )}
+
+      {/* NEW: AUTOMATIC INTER-ROUND COUNTDOWN STATE */}
+      {gameState === 'inter_round' && (
+        <div className="flex flex-col items-center justify-center h-full relative w-full text-center">
+          <h2 className="text-5xl lg:text-7xl font-black text-pink-400 mb-8 tracking-wide animate-pulse uppercase">
+            GET READY!
+          </h2>
+          <p className="text-4xl text-gray-300 mb-8 font-bold">STARTING ROUND {currentRound + 1}</p>
+          <div className="text-[12rem] lg:text-[16rem] font-black text-yellow-400 drop-shadow-[0_0_40px_rgba(250,204,21,0.8)] leading-none">
+            {interRoundTime}
+          </div>
         </div>
       )}
 
@@ -212,7 +243,7 @@ const HostScreen = () => {
           <div className="absolute top-4 left-4 lg:top-8 lg:left-8 bg-gray-800 border-2 border-gray-600 px-6 py-2 rounded-xl">
             <p className="text-2xl font-bold text-gray-300">ROUND {currentRound} OF {maxRounds}</p>
           </div>
-          <h2 className="text-5xl lg:text-7xl font-black text-pink-400 mb-8 tracking-wide text-center animate-pulse">
+          <h2 className="text-5xl lg:text-7xl font-black text-pink-400 mb-12 tracking-wide text-center animate-pulse">
             WAITING FOR {currentActor.toUpperCase()} TO START...
           </h2>
           <div className="text-[10rem] lg:text-[14rem] font-black text-gray-600 drop-shadow-md leading-none">60</div>
@@ -240,7 +271,9 @@ const HostScreen = () => {
           ) : (
             <h2 className="text-[8rem] lg:text-[12rem] font-black text-red-600 mb-6 uppercase animate-pulse leading-none drop-shadow-[0_0_50px_rgba(220,38,38,1)]">TIME IS UP!</h2>
           )}
-          <p className="text-3xl lg:text-5xl text-gray-300">{currentRound >= maxRounds ? "Tallying final scores..." : "Returning to lobby..."}</p>
+          <p className="text-3xl lg:text-5xl text-gray-300">
+            {currentRound >= maxRounds ? "Tallying final scores..." : "Get ready for the next round..."}
+          </p>
         </div>
       )}
 
@@ -252,14 +285,11 @@ const HostScreen = () => {
             <div className="flex flex-col w-full gap-3 overflow-y-auto pr-2 pb-2">
               {sortedPlayers.map((player, idx) => (
                 <div key={idx} className={`flex justify-between items-center p-4 lg:p-6 rounded-2xl border-4 ${idx === 0 ? 'bg-yellow-500/20 border-yellow-500 text-yellow-400 transform scale-105' : idx === 1 ? 'bg-gray-300/10 border-gray-400 text-gray-300' : idx === 2 ? 'bg-orange-700/20 border-orange-700 text-orange-500' : 'bg-gray-700 border-gray-600 text-gray-400'}`}>
-                  
-                  {/* --- NEW: DISPLAYS AVATAR ON SCOREBOARD --- */}
                   <div className="flex items-center gap-4 lg:gap-6">
                     <span className="text-4xl lg:text-5xl font-black">#{idx + 1}</span>
                     <span className="text-4xl lg:text-5xl">{player.avatar || '👤'}</span>
                     <span className="text-3xl lg:text-4xl font-bold truncate">{player.name}</span>
                   </div>
-                  
                   <span className="text-3xl lg:text-4xl font-black">{player.score} PTS</span>
                 </div>
               ))}
