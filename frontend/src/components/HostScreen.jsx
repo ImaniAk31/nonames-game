@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import QRCode from 'react-qr-code'; // <-- NEW: Imported the QR Code generator!
+import QRCode from 'react-qr-code';
 
 const HostScreen = () => {
   const [roomCode, setRoomCode] = useState('KJDS'); 
@@ -45,10 +45,17 @@ const HostScreen = () => {
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
       
-      if (data.type === 'system' && data.message.includes('joined')) {
-        const name = data.message.split(' ')[0]; 
-        if (name !== 'HOST') {
-          setPlayers((prev) => [...prev, { name: name, score: 0 }]);
+      // --- NEW: LISTEN FOR AVATARS AND ADD THEM TO THE ROSTER ---
+      if (data.type === 'player_joined') {
+        if (data.name !== 'HOST') {
+          setPlayers((prev) => {
+            const existing = prev.find(p => p.name === data.name);
+            if (existing) {
+              // Update avatar if they disconnect and reconnect
+              return prev.map(p => p.name === data.name ? { ...p, avatar: data.avatar } : p);
+            }
+            return [...prev, { name: data.name, avatar: data.avatar, score: 0 }];
+          });
         }
       } 
 
@@ -146,14 +153,11 @@ const HostScreen = () => {
   };
 
   const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
-
-  // The actual URL your friends will visit to join
   const joinUrl = "https://nonames-game.vercel.app";
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-gray-900 text-white flex flex-col items-center p-4 lg:p-8 font-sans relative">
       
-      {/* 1. LOBBY STATE */}
       {gameState === 'lobby' && (
         <div className="flex flex-col items-center justify-center w-full max-w-6xl h-full">
           <h1 className="text-5xl lg:text-6xl font-black mb-6 text-pink-500 tracking-wider text-center">
@@ -172,15 +176,12 @@ const HostScreen = () => {
           </div>
           
           <div className="flex w-full justify-between gap-8 h-3/5">
-            {/* --- NEW: QR CODE SECTION --- */}
             <div className="flex flex-col items-center justify-center bg-gray-800 w-1/2 p-6 rounded-2xl border-4 border-blue-500 shadow-2xl h-full">
               <h2 className="text-2xl lg:text-3xl font-bold mb-4 text-gray-200">SCAN TO JOIN</h2>
-              
               <div className="bg-white p-4 rounded-xl shadow-inner border-4 border-gray-300">
                 <QRCode value={joinUrl} size={180} />
               </div>
-              
-              <p className="text-lg text-gray-400 mt-6">ENTER ROOM CODE:</p>
+              <p className="text-lg text-gray-400 mt-6">OR ENTER ROOM CODE:</p>
               <p className="text-6xl lg:text-7xl font-black tracking-widest text-yellow-400 mt-2">{roomCode}</p>
             </div>
 
@@ -189,8 +190,11 @@ const HostScreen = () => {
               <div className="grid grid-cols-2 gap-3 overflow-y-auto pr-2 pb-2">
                 {players.length === 0 && <p className="text-gray-400 italic col-span-2 text-center text-lg mt-4">Waiting for players...</p>}
                 {players.map((player, idx) => (
-                  <div key={idx} className="bg-gray-700 p-3 rounded-xl text-2xl font-bold text-center border-b-4 border-gray-600 truncate">
-                    {player.name} - <span className="text-green-400">{player.score}</span>
+                  // --- NEW: DISPLAYS AVATAR IN LOBBY ---
+                  <div key={idx} className="flex items-center justify-center gap-2 bg-gray-700 p-3 rounded-xl text-2xl font-bold text-center border-b-4 border-gray-600 truncate">
+                    <span className="text-3xl">{player.avatar || '👤'}</span>
+                    <span>{player.name}</span>
+                    <span className="text-green-400 ml-2">{player.score}</span>
                   </div>
                 ))}
               </div>
@@ -203,7 +207,6 @@ const HostScreen = () => {
         </div>
       )}
 
-      {/* ACTOR PREP STATE */}
       {gameState === 'actor_prep' && (
         <div className="flex flex-col items-center justify-center h-full relative w-full">
           <div className="absolute top-4 left-4 lg:top-8 lg:left-8 bg-gray-800 border-2 border-gray-600 px-6 py-2 rounded-xl">
@@ -216,7 +219,6 @@ const HostScreen = () => {
         </div>
       )}
 
-      {/* ACTIVE TURN STATE */}
       {gameState === 'active_turn' && (
         <div className="flex flex-col items-center justify-center h-full relative w-full">
           <div className="absolute top-4 left-4 lg:top-8 lg:left-8 bg-gray-800 border-2 border-gray-600 px-6 py-2 rounded-xl">
@@ -231,7 +233,6 @@ const HostScreen = () => {
         </div>
       )}
 
-      {/* ROUND OVER STATE */}
       {gameState === 'round_over' && (
         <div className="flex flex-col items-center justify-center h-full text-center">
           {celebrationMsg ? (
@@ -243,7 +244,6 @@ const HostScreen = () => {
         </div>
       )}
 
-      {/* GAME OVER SCOREBOARD */}
       {gameState === 'game_over' && (
         <div className="flex flex-col items-center justify-center h-full w-full max-w-4xl">
           <h2 className="text-[5rem] lg:text-[7rem] font-black text-yellow-400 mb-8 tracking-wider drop-shadow-[0_0_40px_rgba(250,204,21,0.6)] animate-pulse leading-none">GAME OVER</h2>
@@ -252,7 +252,14 @@ const HostScreen = () => {
             <div className="flex flex-col w-full gap-3 overflow-y-auto pr-2 pb-2">
               {sortedPlayers.map((player, idx) => (
                 <div key={idx} className={`flex justify-between items-center p-4 lg:p-6 rounded-2xl border-4 ${idx === 0 ? 'bg-yellow-500/20 border-yellow-500 text-yellow-400 transform scale-105' : idx === 1 ? 'bg-gray-300/10 border-gray-400 text-gray-300' : idx === 2 ? 'bg-orange-700/20 border-orange-700 text-orange-500' : 'bg-gray-700 border-gray-600 text-gray-400'}`}>
-                  <div className="flex items-center gap-4 lg:gap-6"><span className="text-4xl lg:text-5xl font-black">#{idx + 1}</span><span className="text-3xl lg:text-4xl font-bold truncate">{player.name}</span></div>
+                  
+                  {/* --- NEW: DISPLAYS AVATAR ON SCOREBOARD --- */}
+                  <div className="flex items-center gap-4 lg:gap-6">
+                    <span className="text-4xl lg:text-5xl font-black">#{idx + 1}</span>
+                    <span className="text-4xl lg:text-5xl">{player.avatar || '👤'}</span>
+                    <span className="text-3xl lg:text-4xl font-bold truncate">{player.name}</span>
+                  </div>
+                  
                   <span className="text-3xl lg:text-4xl font-black">{player.score} PTS</span>
                 </div>
               ))}

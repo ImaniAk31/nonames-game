@@ -6,10 +6,9 @@ from thefuzz import fuzz
 
 from database import SessionLocal
 import crud
-
 from seed import seed_database
 
-# Run the seed script automatically when the sever boots up
+# Auto-seed the database on startup!
 seed_database()
 
 app = FastAPI(title="I'm Not Gonna Say No Names API")
@@ -48,16 +47,22 @@ async def root():
 async def websocket_endpoint(websocket: WebSocket, room_code: str, player_name: str):
     await manager.connect(websocket, room_code)
     
-    join_msg = {"type": "system", "message": f"{player_name} has joined the room."}
-    await manager.broadcast_to_room(join_msg, room_code)
-    
     try:
         while True:
             data = await websocket.receive_text()
             parsed_data = json.loads(data)
             
+            # --- NEW: CATCH THE AVATAR AND BROADCAST TO TV ---
+            if parsed_data.get("action") == "set_avatar":
+                chosen_avatar = parsed_data.get("avatar", "👤")
+                await manager.broadcast_to_room({
+                    "type": "player_joined",
+                    "name": player_name,
+                    "avatar": chosen_avatar
+                }, room_code)
+
             # --- START GAME LOGIC ---
-            if parsed_data.get("action") == "start_game":
+            elif parsed_data.get("action") == "start_game":
                 players_list = parsed_data.get("players", [])
                 if players_list:
                     actor_name = random.choice(players_list)
@@ -87,25 +92,17 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str, player_name: 
                     finally:
                         db.close()
 
-            # --- NEW: ACTOR IS READY LOGIC ---
             elif parsed_data.get("action") == "actor_ready":
-                # Tells the TV to start the clock and the guessers to show their text boxes
                 await manager.broadcast_to_room({"type": "actor_ready"}, room_code)
 
-            # --- SUBMIT GUESS LOGIC ---
             elif parsed_data.get("action") == "submit_guess":
                 guess = parsed_data.get("guess", "")
                 player_guessing = parsed_data.get("player", "")
-                
                 active_card = manager.room_state.get(room_code)
                 
                 if active_card:
                     correct_title = active_card["title"].lower()
                     match_score = fuzz.ratio(correct_title, guess.lower())
-                    
-                    print(f"Player {player_guessing} guessed: '{guess}'")
-                    print(f"The correct answer is: '{correct_title}'")
-                    print(f"Fuzzy Match Score: {match_score}/100")
                     
                     if match_score > 85:
                         success_msg = {
@@ -114,7 +111,6 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str, player_name: 
                         }
                         await manager.broadcast_to_room(success_msg, room_code)
                         
-            # --- END ROUND AUTOMATION ---
             elif parsed_data.get("action") == "end_round":
                 await manager.broadcast_to_room({"type": "round_over"}, room_code)
                 

@@ -1,11 +1,17 @@
 import React, { useState } from 'react';
 
+// The emojis players can choose from!
+const AVATARS = ['😎', '🤠', '👽', '👻', '🤖', '👑', '🔥', '💎'];
+
 const ClientScreen = () => {
   const [roomCode, setRoomCode] = useState('');
   const [nickname, setNickname] = useState('');
   const [joined, setJoined] = useState(false);
   const [ws, setWs] = useState(null);
   
+  // NEW: Avatar State
+  const [avatar, setAvatar] = useState(AVATARS[0]);
+
   const [gameState, setGameState] = useState('waiting'); 
   const [currentCard, setCurrentCard] = useState(null);
   const [guess, setGuess] = useState('');
@@ -15,13 +21,20 @@ const ClientScreen = () => {
     e.preventDefault();
     if (!roomCode || !nickname) return;
 
-    // --- NEW WEB DEPLOYMENT URL LOGIC ---
     const wsUrl = window.location.hostname === 'localhost' 
       ? `ws://localhost:8000/ws/${roomCode.toUpperCase()}/${nickname}`
       : `wss://nonames-game.onrender.com/ws/${roomCode.toUpperCase()}/${nickname}`;
 
     const socket = new WebSocket(wsUrl);
-    socket.onopen = () => setJoined(true);
+    
+    socket.onopen = () => {
+      setJoined(true);
+      // NEW: Send the chosen avatar to the TV immediately!
+      socket.send(JSON.stringify({
+        action: 'set_avatar',
+        avatar: avatar
+      }));
+    };
 
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
@@ -76,8 +89,27 @@ const ClientScreen = () => {
       {!joined && (
         <form onSubmit={joinRoom} className="bg-gray-800 p-8 rounded-2xl border-4 border-pink-500 w-full max-w-md shadow-2xl flex flex-col gap-6">
           <h2 className="text-4xl font-black text-center text-pink-400 mb-4">JOIN GAME</h2>
+          
           <input type="text" placeholder="ROOM CODE" value={roomCode} onChange={(e) => setRoomCode(e.target.value)} className="w-full text-center text-3xl p-4 rounded bg-gray-700 text-yellow-400 font-black uppercase tracking-widest outline-none" maxLength={4} />
           <input type="text" placeholder="NICKNAME" value={nickname} onChange={(e) => setNickname(e.target.value)} className="w-full text-center text-2xl p-4 rounded bg-gray-700 text-white font-bold outline-none" maxLength={12} />
+          
+          {/* NEW: AVATAR SELECTOR */}
+          <div className="w-full mt-2">
+            <p className="text-center text-gray-400 font-bold mb-2">CHOOSE YOUR AVATAR:</p>
+            <div className="flex justify-center gap-2 flex-wrap">
+              {AVATARS.map(a => (
+                <button 
+                  type="button" 
+                  key={a} 
+                  onClick={() => setAvatar(a)}
+                  className={`text-4xl p-2 rounded-xl transition-all ${avatar === a ? 'bg-pink-500 scale-110 shadow-lg' : 'bg-gray-700 hover:bg-gray-600 opacity-50'}`}
+                >
+                  {a}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white text-3xl font-bold py-5 rounded-full mt-4 hover:scale-105 transition-all">ENTER</button>
         </form>
       )}
