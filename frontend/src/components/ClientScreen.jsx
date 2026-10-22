@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-// The emojis players can choose from!
 const AVATARS = ['😎', '🤠', '👽', '👻', '🤖', '👑', '🔥', '💎'];
 
 const ClientScreen = () => {
@@ -9,13 +8,39 @@ const ClientScreen = () => {
   const [joined, setJoined] = useState(false);
   const [ws, setWs] = useState(null);
   
-  // NEW: Avatar State
   const [avatar, setAvatar] = useState(AVATARS[0]);
+  const [takenAvatars, setTakenAvatars] = useState([]); // <-- NEW STATE
 
   const [gameState, setGameState] = useState('waiting'); 
   const [currentCard, setCurrentCard] = useState(null);
   const [guess, setGuess] = useState('');
   const [actionType, setActionType] = useState('');
+
+  // --- NEW: PEEK AT THE ROOM WHEN THEY TYPE THE CODE ---
+  useEffect(() => {
+    if (roomCode.length === 4) {
+      // Use HTTP (not wss) for the REST API call
+      const fetchUrl = window.location.hostname === 'localhost' 
+        ? `http://localhost:8000/api/avatars/${roomCode.toUpperCase()}`
+        : `https://nonames-game.onrender.com/api/avatars/${roomCode.toUpperCase()}`;
+        
+      fetch(fetchUrl)
+        .then(res => res.json())
+        .then(data => {
+          if (data.taken) {
+            setTakenAvatars(data.taken);
+            // If they happen to have a taken avatar currently selected, bump them to a free one
+            if (data.taken.includes(avatar)) {
+              const firstFree = AVATARS.find(a => !data.taken.includes(a));
+              if (firstFree) setAvatar(firstFree);
+            }
+          }
+        })
+        .catch(err => console.log("Could not check avatars", err));
+    } else {
+      setTakenAvatars([]); // Clear it if they delete the room code
+    }
+  }, [roomCode]);
 
   const joinRoom = (e) => {
     e.preventDefault();
@@ -29,7 +54,6 @@ const ClientScreen = () => {
     
     socket.onopen = () => {
       setJoined(true);
-      // NEW: Send the chosen avatar to the TV immediately!
       socket.send(JSON.stringify({
         action: 'set_avatar',
         avatar: avatar
@@ -39,6 +63,10 @@ const ClientScreen = () => {
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
       
+      if (data.type === 'avatar_assigned') {
+        setAvatar(data.avatar);
+      }
+
       if (data.type === 'turn_started') {
         if (data.actor === nickname) {
           setCurrentCard(data.card);
@@ -64,6 +92,14 @@ const ClientScreen = () => {
         setGuess('');            
       }
     };
+
+    socket.onclose = () => {
+      setJoined(false);
+      setWs(null);
+      setGameState('waiting');
+      alert("Connection Dropped! Your phone screen likely went to sleep. Hit ENTER to instantly jump back in!");
+    };
+
     setWs(socket);
   };
 
@@ -93,20 +129,26 @@ const ClientScreen = () => {
           <input type="text" placeholder="ROOM CODE" value={roomCode} onChange={(e) => setRoomCode(e.target.value)} className="w-full text-center text-3xl p-4 rounded bg-gray-700 text-yellow-400 font-black uppercase tracking-widest outline-none" maxLength={4} />
           <input type="text" placeholder="NICKNAME" value={nickname} onChange={(e) => setNickname(e.target.value)} className="w-full text-center text-2xl p-4 rounded bg-gray-700 text-white font-bold outline-none" maxLength={12} />
           
-          {/* NEW: AVATAR SELECTOR */}
           <div className="w-full mt-2">
             <p className="text-center text-gray-400 font-bold mb-2">CHOOSE YOUR AVATAR:</p>
             <div className="flex justify-center gap-2 flex-wrap">
-              {AVATARS.map(a => (
-                <button 
-                  type="button" 
-                  key={a} 
-                  onClick={() => setAvatar(a)}
-                  className={`text-4xl p-2 rounded-xl transition-all ${avatar === a ? 'bg-pink-500 scale-110 shadow-lg' : 'bg-gray-700 hover:bg-gray-600 opacity-50'}`}
-                >
-                  {a}
-                </button>
-              ))}
+              {AVATARS.map(a => {
+                // --- NEW: CHECK IF TAKEN AND SHADE IT OUT! ---
+                const isTaken = takenAvatars.includes(a);
+                return (
+                  <button 
+                    type="button" 
+                    key={a} 
+                    disabled={isTaken}
+                    onClick={() => setAvatar(a)}
+                    className={`text-4xl p-2 rounded-xl transition-all 
+                      ${isTaken ? 'opacity-20 grayscale cursor-not-allowed' : 
+                        avatar === a ? 'bg-pink-500 scale-110 shadow-lg' : 'bg-gray-700 hover:bg-gray-600 opacity-50'}`}
+                  >
+                    {a}
+                  </button>
+                )
+              })}
             </div>
           </div>
 
@@ -172,6 +214,10 @@ const ClientScreen = () => {
               placeholder="Type your guess here..." 
               value={guess}
               onChange={(e) => setGuess(e.target.value)}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="none"
+              spellCheck="false"
               className="w-full text-center text-2xl p-5 rounded-xl bg-gray-700 text-white font-bold focus:ring-4 focus:ring-blue-400 outline-none"
             />
             <button type="submit" className="w-full bg-yellow-500 hover:bg-yellow-400 text-gray-900 text-3xl font-black py-5 rounded-xl mt-2 hover:scale-105 transition-all">
