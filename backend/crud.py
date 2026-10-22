@@ -1,21 +1,23 @@
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import func
-import models
+from models import Card
 
-def get_random_card(db: Session, category_name: str = None) -> dict:
-    query = db.query(models.Card).filter(models.Card.is_active == True)
+def get_random_card(db: Session, deck_name: str = "Any"):
+    query = db.query(Card).filter(Card.is_active == True)
     
-    if category_name:
-        query = query.filter(models.Card.category == category_name)
+    # Filter by the deck chosen on the TV screen
+    if deck_name != "Any":
+        query = query.filter(Card.deck == deck_name)
         
-    random_card = query.order_by(func.random()).first()
+    card = query.order_by(func.random()).first()
     
-    if not random_card:
-        return None
-
-    return {
-        "id": random_card.id,
-        "title": random_card.title,
-        "category": random_card.category,
-        "forbidden_words": random_card.forbidden_words
-    }
+    if card:
+        return {
+            "id": card.id,
+            "title": card.title,
+            "category": card.category,
+            "forbidden_words": [w.strip() for w in card.forbidden_words_str.split(',')],
+            "deck": card.deck,
+            "hint": card.hint # --- NEW: Passing the hint to the frontend! ---
+        }
+    return None

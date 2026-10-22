@@ -9,17 +9,15 @@ const ClientScreen = () => {
   const [ws, setWs] = useState(null);
   
   const [avatar, setAvatar] = useState(AVATARS[0]);
-  const [takenAvatars, setTakenAvatars] = useState([]); // <-- NEW STATE
+  const [takenAvatars, setTakenAvatars] = useState([]);
 
   const [gameState, setGameState] = useState('waiting'); 
   const [currentCard, setCurrentCard] = useState(null);
   const [guess, setGuess] = useState('');
   const [actionType, setActionType] = useState('');
 
-  // --- NEW: PEEK AT THE ROOM WHEN THEY TYPE THE CODE ---
   useEffect(() => {
     if (roomCode.length === 4) {
-      // Use HTTP (not wss) for the REST API call
       const fetchUrl = window.location.hostname === 'localhost' 
         ? `http://localhost:8000/api/avatars/${roomCode.toUpperCase()}`
         : `https://nonames-game.onrender.com/api/avatars/${roomCode.toUpperCase()}`;
@@ -29,7 +27,6 @@ const ClientScreen = () => {
         .then(data => {
           if (data.taken) {
             setTakenAvatars(data.taken);
-            // If they happen to have a taken avatar currently selected, bump them to a free one
             if (data.taken.includes(avatar)) {
               const firstFree = AVATARS.find(a => !data.taken.includes(a));
               if (firstFree) setAvatar(firstFree);
@@ -38,7 +35,7 @@ const ClientScreen = () => {
         })
         .catch(err => console.log("Could not check avatars", err));
     } else {
-      setTakenAvatars([]); // Clear it if they delete the room code
+      setTakenAvatars([]); 
     }
   }, [roomCode]);
 
@@ -133,7 +130,6 @@ const ClientScreen = () => {
             <p className="text-center text-gray-400 font-bold mb-2">CHOOSE YOUR AVATAR:</p>
             <div className="flex justify-center gap-2 flex-wrap">
               {AVATARS.map(a => {
-                // --- NEW: CHECK IF TAKEN AND SHADE IT OUT! ---
                 const isTaken = takenAvatars.includes(a);
                 return (
                   <button 
@@ -141,9 +137,7 @@ const ClientScreen = () => {
                     key={a} 
                     disabled={isTaken}
                     onClick={() => setAvatar(a)}
-                    className={`text-4xl p-2 rounded-xl transition-all 
-                      ${isTaken ? 'opacity-20 grayscale cursor-not-allowed' : 
-                        avatar === a ? 'bg-pink-500 scale-110 shadow-lg' : 'bg-gray-700 hover:bg-gray-600 opacity-50'}`}
+                    className={`text-4xl p-2 rounded-xl transition-all ${isTaken ? 'opacity-20 grayscale cursor-not-allowed' : avatar === a ? 'bg-pink-500 scale-110 shadow-lg' : 'bg-gray-700 hover:bg-gray-600 opacity-50'}`}
                   >
                     {a}
                   </button>
@@ -177,9 +171,9 @@ const ClientScreen = () => {
           </div>
           
           <h2 className="text-6xl font-black text-yellow-400 mb-2">{currentCard.title}</h2>
-          <p className="text-xl text-gray-400 mb-8 uppercase tracking-widest">{currentCard.category}</p>
+          <p className="text-xl text-gray-400 mb-6 uppercase tracking-widest">{currentCard.category}</p>
           
-          <div className="bg-red-600/20 border-4 border-red-500 w-full p-6 rounded-2xl mb-8">
+          <div className="bg-red-600/20 border-4 border-red-500 w-full p-6 rounded-2xl mb-6">
             <h3 className="text-3xl font-bold text-red-500 mb-4">FORBIDDEN WORDS:</h3>
             <div className="flex flex-wrap justify-center gap-2">
               {currentCard.forbidden_words.map((word, idx) => (
@@ -189,6 +183,14 @@ const ClientScreen = () => {
               ))}
             </div>
           </div>
+
+          {/* --- NEW: THE HINT BOX --- */}
+          {currentCard.hint && (
+            <div className="bg-gray-800 border-2 border-gray-600 w-full p-4 rounded-xl mb-8">
+              <p className="text-gray-400 font-bold text-sm mb-1">💡 HINT:</p>
+              <p className="text-gray-200 text-lg italic">{currentCard.hint}</p>
+            </div>
+          )}
 
           {gameState === 'actor_prep' && (
             <button onClick={startActing} className="w-full bg-green-500 hover:bg-green-400 text-white text-5xl font-black py-6 rounded-2xl shadow-[0_0_30px_rgba(34,197,94,0.6)] hover:scale-105 transition-all animate-bounce">

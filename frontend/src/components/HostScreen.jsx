@@ -5,16 +5,16 @@ const HostScreen = () => {
   const [roomCode, setRoomCode] = useState('KJDS'); 
   const [players, setPlayers] = useState([]);
   
-  // NEW STATE: Added 'inter_round' for the auto-countdown
   const [gameState, setGameState] = useState('lobby'); 
   const [ws, setWs] = useState(null);
   const [celebrationMsg, setCelebrationMsg] = useState('');
   const [timeLeft, setTimeLeft] = useState(60);
-  
-  // NEW STATE: The 10-second countdown between rounds
   const [interRoundTime, setInterRoundTime] = useState(10);
 
   const [maxRounds, setMaxRounds] = useState(5);
+  // --- NEW: Default to For The Culture ---
+  const [selectedDeck, setSelectedDeck] = useState('For The Culture');
+  
   const [currentRound, setCurrentRound] = useState(0);
   const [currentActor, setCurrentActor] = useState('SOMEONE'); 
   
@@ -83,7 +83,6 @@ const HostScreen = () => {
         setGameState('round_over');
         socket.send(JSON.stringify({ action: 'end_round' }));
 
-        // Check if game is over, otherwise start the 10-second countdown!
         setTimeout(() => {
           setCelebrationMsg('');
           if (currentRoundRef.current >= maxRoundsRef.current) {
@@ -100,7 +99,6 @@ const HostScreen = () => {
     return () => socket.close();
   }, [roomCode]);
 
-  // --- AUTOMATIC INTER-ROUND COUNTDOWN LOGIC ---
   useEffect(() => {
     if (gameState === 'inter_round' && interRoundTime > 0) {
       const timerId = setInterval(() => {
@@ -108,7 +106,6 @@ const HostScreen = () => {
       }, 1000);
       return () => clearInterval(timerId);
     } else if (gameState === 'inter_round' && interRoundTime === 0) {
-      // Boom! Start the next round automatically!
       startGame();
     }
   }, [gameState, interRoundTime]);
@@ -142,7 +139,6 @@ const HostScreen = () => {
       setGameState('round_over');
       if (ws) ws.send(JSON.stringify({ action: 'end_round' }));
       
-      // Check if game is over, otherwise start the 10-second countdown!
       setTimeout(() => {
         if (currentRoundRef.current >= maxRoundsRef.current) {
           setGameState('game_over');
@@ -161,7 +157,8 @@ const HostScreen = () => {
     const playerNames = players.map(p => p.name);
     ws.send(JSON.stringify({ 
       action: 'start_game', 
-      players: playerNames 
+      players: playerNames,
+      deck: selectedDeck 
     }));
   };
 
@@ -183,7 +180,23 @@ const HostScreen = () => {
             I'M NOT GONNA SAY NO NAMES
           </h1>
           
-          <div className="flex flex-col items-center mb-6 bg-gray-800 px-6 py-3 rounded-2xl border-2 border-gray-700">
+          <div className="flex flex-col items-center mb-6 bg-gray-800 px-6 py-3 rounded-2xl border-2 border-gray-700 w-full max-w-4xl">
+            
+            <h3 className="text-xl font-bold mb-3 text-gray-300">SELECT DECK:</h3>
+            <div className="flex gap-4 mb-6">
+              {/* --- NEW: Updated deck names in UI --- */}
+              {['For The Culture', 'Pop Culture', 'Any'].map(deck => (
+                <button 
+                  key={deck} 
+                  onClick={() => setSelectedDeck(deck)} 
+                  className={`px-6 py-2 rounded-full text-xl font-bold transition-all border-4 
+                    ${selectedDeck === deck ? 'bg-purple-600 border-purple-400 text-white shadow-[0_0_20px_rgba(147,51,234,0.8)]' : 'bg-gray-900 border-gray-600 text-gray-400 hover:border-purple-400 hover:text-white'}`}
+                >
+                  {deck === 'Any' ? 'MIXED DECK' : deck.toUpperCase()}
+                </button>
+              ))}
+            </div>
+
             <h3 className="text-xl font-bold mb-3 text-gray-300">SELECT GAME LENGTH:</h3>
             <div className="flex gap-4">
               {[5, 10, 15].map(num => (
@@ -194,14 +207,12 @@ const HostScreen = () => {
             </div>
           </div>
           
-          <div className="flex w-full justify-between gap-8 h-3/5">
+          <div className="flex w-full justify-between gap-8 h-2/5">
             <div className="flex flex-col items-center justify-center bg-gray-800 w-1/2 p-6 rounded-2xl border-4 border-blue-500 shadow-2xl h-full">
               <h2 className="text-2xl lg:text-3xl font-bold mb-4 text-gray-200">SCAN TO JOIN</h2>
               <div className="bg-white p-4 rounded-xl shadow-inner border-4 border-gray-300">
-                <QRCode value={joinUrl} size={180} />
+                <QRCode value={joinUrl} size={140} />
               </div>
-              <p className="text-lg text-gray-400 mt-6">OR ENTER ROOM CODE:</p>
-              <p className="text-6xl lg:text-7xl font-black tracking-widest text-yellow-400 mt-2">{roomCode}</p>
             </div>
 
             <div className="flex flex-col bg-gray-800 w-1/2 p-6 rounded-2xl border-4 border-pink-500 shadow-2xl h-full overflow-hidden">
@@ -225,16 +236,11 @@ const HostScreen = () => {
         </div>
       )}
 
-      {/* NEW: AUTOMATIC INTER-ROUND COUNTDOWN STATE */}
       {gameState === 'inter_round' && (
         <div className="flex flex-col items-center justify-center h-full relative w-full text-center">
-          <h2 className="text-5xl lg:text-7xl font-black text-pink-400 mb-8 tracking-wide animate-pulse uppercase">
-            GET READY!
-          </h2>
+          <h2 className="text-5xl lg:text-7xl font-black text-pink-400 mb-8 tracking-wide animate-pulse uppercase">GET READY!</h2>
           <p className="text-4xl text-gray-300 mb-8 font-bold">STARTING ROUND {currentRound + 1}</p>
-          <div className="text-[12rem] lg:text-[16rem] font-black text-yellow-400 drop-shadow-[0_0_40px_rgba(250,204,21,0.8)] leading-none">
-            {interRoundTime}
-          </div>
+          <div className="text-[12rem] lg:text-[16rem] font-black text-yellow-400 drop-shadow-[0_0_40px_rgba(250,204,21,0.8)] leading-none">{interRoundTime}</div>
         </div>
       )}
 
@@ -271,9 +277,7 @@ const HostScreen = () => {
           ) : (
             <h2 className="text-[8rem] lg:text-[12rem] font-black text-red-600 mb-6 uppercase animate-pulse leading-none drop-shadow-[0_0_50px_rgba(220,38,38,1)]">TIME IS UP!</h2>
           )}
-          <p className="text-3xl lg:text-5xl text-gray-300">
-            {currentRound >= maxRounds ? "Tallying final scores..." : "Get ready for the next round..."}
-          </p>
+          <p className="text-3xl lg:text-5xl text-gray-300">{currentRound >= maxRounds ? "Tallying final scores..." : "Get ready for the next round..."}</p>
         </div>
       )}
 
@@ -285,11 +289,7 @@ const HostScreen = () => {
             <div className="flex flex-col w-full gap-3 overflow-y-auto pr-2 pb-2">
               {sortedPlayers.map((player, idx) => (
                 <div key={idx} className={`flex justify-between items-center p-4 lg:p-6 rounded-2xl border-4 ${idx === 0 ? 'bg-yellow-500/20 border-yellow-500 text-yellow-400 transform scale-105' : idx === 1 ? 'bg-gray-300/10 border-gray-400 text-gray-300' : idx === 2 ? 'bg-orange-700/20 border-orange-700 text-orange-500' : 'bg-gray-700 border-gray-600 text-gray-400'}`}>
-                  <div className="flex items-center gap-4 lg:gap-6">
-                    <span className="text-4xl lg:text-5xl font-black">#{idx + 1}</span>
-                    <span className="text-4xl lg:text-5xl">{player.avatar || '👤'}</span>
-                    <span className="text-3xl lg:text-4xl font-bold truncate">{player.name}</span>
-                  </div>
+                  <div className="flex items-center gap-4 lg:gap-6"><span className="text-4xl lg:text-5xl font-black">#{idx + 1}</span><span className="text-4xl lg:text-5xl">{player.avatar || '👤'}</span><span className="text-3xl lg:text-4xl font-bold truncate">{player.name}</span></div>
                   <span className="text-3xl lg:text-4xl font-black">{player.score} PTS</span>
                 </div>
               ))}
