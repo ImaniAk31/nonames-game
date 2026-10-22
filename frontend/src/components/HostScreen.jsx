@@ -12,7 +12,6 @@ const HostScreen = () => {
   const [interRoundTime, setInterRoundTime] = useState(10);
 
   const [maxRounds, setMaxRounds] = useState(5);
-  // --- NEW: Default to For The Culture ---
   const [selectedDeck, setSelectedDeck] = useState('For The Culture');
   
   const [currentRound, setCurrentRound] = useState(0);
@@ -172,19 +171,17 @@ const HostScreen = () => {
   const joinUrl = "https://nonames-game.vercel.app";
 
   return (
-    <div className="h-screen w-screen overflow-hidden bg-gray-900 text-white flex flex-col items-center p-4 lg:p-8 font-sans relative">
+    <div className="h-screen w-screen overflow-hidden bg-gray-900 text-white flex flex-col items-center p-4 lg:p-6 font-sans relative">
       
       {gameState === 'lobby' && (
-        <div className="flex flex-col items-center justify-center w-full max-w-6xl h-full">
-          <h1 className="text-5xl lg:text-6xl font-black mb-6 text-pink-500 tracking-wider text-center">
+        <div className="flex flex-col items-center justify-center w-full max-w-7xl h-full">
+          <h1 className="text-5xl lg:text-6xl font-black mb-4 text-pink-500 tracking-wider text-center">
             I'M NOT GONNA SAY NO NAMES
           </h1>
           
           <div className="flex flex-col items-center mb-6 bg-gray-800 px-6 py-3 rounded-2xl border-2 border-gray-700 w-full max-w-4xl">
-            
             <h3 className="text-xl font-bold mb-3 text-gray-300">SELECT DECK:</h3>
-            <div className="flex gap-4 mb-6">
-              {/* --- NEW: Updated deck names in UI --- */}
+            <div className="flex gap-4 mb-4">
               {['For The Culture', 'Pop Culture', 'Any'].map(deck => (
                 <button 
                   key={deck} 
@@ -207,12 +204,22 @@ const HostScreen = () => {
             </div>
           </div>
           
-          <div className="flex w-full justify-between gap-8 h-2/5">
-            <div className="flex flex-col items-center justify-center bg-gray-800 w-1/2 p-6 rounded-2xl border-4 border-blue-500 shadow-2xl h-full">
-              <h2 className="text-2xl lg:text-3xl font-bold mb-4 text-gray-200">SCAN TO JOIN</h2>
-              <div className="bg-white p-4 rounded-xl shadow-inner border-4 border-gray-300">
-                <QRCode value={joinUrl} size={140} />
+          {/* --- FIX: QR CODE AND ROOM CODE SIDE-BY-SIDE --- */}
+          <div className="flex w-full justify-between gap-8 flex-1 min-h-0">
+            <div className="flex flex-row items-center justify-center bg-gray-800 w-1/2 p-6 rounded-2xl border-4 border-blue-500 shadow-2xl h-full gap-8">
+              
+              <div className="flex flex-col items-center">
+                <h2 className="text-2xl font-bold mb-3 text-gray-200">SCAN TO JOIN</h2>
+                <div className="bg-white p-3 rounded-xl shadow-inner border-4 border-gray-300">
+                  <QRCode value={joinUrl} size={140} />
+                </div>
               </div>
+
+              <div className="flex flex-col items-center justify-center">
+                <p className="text-xl text-gray-400 font-bold mb-2">OR ENTER CODE:</p>
+                <p className="text-7xl font-black tracking-widest text-yellow-400 drop-shadow-md">{roomCode}</p>
+              </div>
+
             </div>
 
             <div className="flex flex-col bg-gray-800 w-1/2 p-6 rounded-2xl border-4 border-pink-500 shadow-2xl h-full overflow-hidden">
@@ -230,7 +237,7 @@ const HostScreen = () => {
             </div>
           </div>
 
-          <button onClick={startGame} disabled={players.length === 0} className={`mt-8 text-3xl font-bold py-4 px-12 rounded-full transition-all shadow-[0_0_30px_rgba(59,130,246,0.4)] ${players.length > 0 ? 'bg-blue-600 hover:bg-blue-500 text-white hover:scale-105' : 'bg-gray-600 text-gray-400'}`}>
+          <button onClick={startGame} disabled={players.length === 0} className={`mt-6 mb-4 text-3xl font-bold py-4 px-12 rounded-full transition-all shadow-[0_0_30px_rgba(59,130,246,0.4)] ${players.length > 0 ? 'bg-blue-600 hover:bg-blue-500 text-white hover:scale-105' : 'bg-gray-600 text-gray-400'}`}>
             START GAME
           </button>
         </div>
